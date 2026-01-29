@@ -1,0 +1,375 @@
+openapi: 3.0.3
+info:
+  title: Smart Home API
+  description: REST API for Smart Home application
+  version: 0.0.1
+servers:
+- url: https://virtserver.swaggerhub.com/mysalfe/ewwe/0.0.1
+  description: SwaggerHub API Auto Mocking
+- url: https://api.smarthome.com/api/v1
+security:
+- BearerAuth: []
+paths:
+  /auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/auth_login_body"
+        required: true
+      responses:
+        "200":
+          description: Authorized
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /me:
+    get:
+      tags:
+      - User
+      summary: Get current user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /homes:
+    get:
+      tags:
+      - Home
+      summary: Get homes
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Home"
+    post:
+      tags:
+      - Home
+      summary: Create home
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Home"
+        required: true
+      responses:
+        "201":
+          description: Created
+  /homes/{homeId}/rooms:
+    get:
+      tags:
+      - Room
+      summary: Get rooms
+      parameters:
+      - name: homeId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Room"
+    post:
+      tags:
+      - Room
+      summary: Create room
+      parameters:
+      - name: homeId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Room"
+        required: true
+      responses:
+        "201":
+          description: Created
+  /devices:
+    get:
+      tags:
+      - Device
+      summary: Get devices
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Device"
+    post:
+      tags:
+      - Device
+      summary: Add device
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Device"
+        required: true
+      responses:
+        "201":
+          description: Created
+  /devices/{deviceId}/commands:
+    post:
+      tags:
+      - Device
+      summary: Send device command (async)
+      parameters:
+      - name: deviceId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceCommand"
+        required: true
+      responses:
+        "202":
+          description: Accepted
+        "409":
+          description: Device offline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /scenes:
+    get:
+      tags:
+      - Scene
+      summary: Get scenes
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Scene"
+    post:
+      tags:
+      - Scene
+      summary: Create scene
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Scene"
+        required: true
+      responses:
+        "201":
+          description: Created
+  /scenes/{sceneId}/run:
+    post:
+      tags:
+      - Scene
+      summary: Run scene
+      parameters:
+      - name: sceneId
+        in: path
+        required: true
+        schema:
+          $ref: "#/components/schemas/UUID"
+      responses:
+        "202":
+          description: Accepted
+components:
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+    DateTime:
+      type: string
+      format: date-time
+    ErrorResponse:
+      required:
+      - error
+      type: object
+      properties:
+        error:
+          $ref: "#/components/schemas/ErrorResponse_error"
+    User:
+      required:
+      - email
+      - id
+      - role
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        role:
+          type: string
+          enum:
+          - owner
+          - admin
+          - user
+          - guest
+        createdAt:
+          $ref: "#/components/schemas/DateTime"
+    Home:
+      required:
+      - id
+      - name
+      - ownerId
+      - timezone
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+        timezone:
+          type: string
+        ownerId:
+          $ref: "#/components/schemas/UUID"
+    Room:
+      required:
+      - homeId
+      - id
+      - name
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        homeId:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+        order:
+          type: integer
+    Device:
+      required:
+      - homeId
+      - id
+      - isOnline
+      - name
+      - type
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        homeId:
+          $ref: "#/components/schemas/UUID"
+        roomId:
+          $ref: "#/components/schemas/UUID"
+        type:
+          type: string
+          enum:
+          - light
+          - thermostat
+          - socket
+          - sensor
+          - lock
+          - camera
+        name:
+          type: string
+        isOnline:
+          type: boolean
+        capabilities:
+          type: array
+          items:
+            type: string
+        state:
+          type: object
+          additionalProperties: true
+        createdAt:
+          $ref: "#/components/schemas/DateTime"
+    DeviceCommand:
+      required:
+      - command
+      type: object
+      properties:
+        command:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+    Scene:
+      required:
+      - actions
+      - homeId
+      - id
+      - name
+      type: object
+      properties:
+        id:
+          $ref: "#/components/schemas/UUID"
+        homeId:
+          $ref: "#/components/schemas/UUID"
+        name:
+          type: string
+        actions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Scene_actions"
+    auth_login_body:
+      required:
+      - email
+      - password
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    ErrorResponse_error:
+      required:
+      - code
+      - message
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+    Scene_actions:
+      required:
+      - deviceId
+      - state
+      type: object
+      properties:
+        deviceId:
+          $ref: "#/components/schemas/UUID"
+        state:
+          type: object
+          additionalProperties: true
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

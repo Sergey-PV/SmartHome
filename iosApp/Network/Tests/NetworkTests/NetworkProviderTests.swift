@@ -107,6 +107,8 @@ private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         case "/v1/login":
             #expect(request.url?.absoluteString == "https://api.example.com/v1/login")
             #expect(request.httpMethod == "POST")
+            #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
+            #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer token")
 
             let body = try #require(readBody(from: request))
@@ -118,6 +120,7 @@ private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
                 try JSONEncoder().encode(LoginResponse(accessToken: "abc"))
             )
         case "/v1/profile":
+            #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
             return (
                 HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)!,
                 Data("{\"message\":\"Unauthorized\"}".utf8)

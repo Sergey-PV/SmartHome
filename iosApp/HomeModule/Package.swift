@@ -16,12 +16,14 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "../AuthModule"),
+        .package(path: "../Network"),
     ],
     targets: [
         .target(
             name: "HomeModule",
             dependencies: [
                 "AuthModule",
+                "Network",
             ]
         ),
         .testTarget(

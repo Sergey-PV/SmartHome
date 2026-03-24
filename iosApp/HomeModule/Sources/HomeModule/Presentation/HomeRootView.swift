@@ -1,5 +1,3 @@
-import Foundation
-import Combine
 import SwiftUI
 import AuthModule
 
@@ -9,16 +7,10 @@ public struct HomeRootView: View {
 
     public init(
         authViewModel: AuthViewModel,
-        baseURL: URL = AuthEnvironment.productionBaseURL,
-        urlSession: URLSession = .shared
+        viewModel: HomeViewModel
     ) {
         self.authViewModel = authViewModel
-        _homeViewModel = StateObject(
-            wrappedValue: HomeViewModel(
-                baseURL: baseURL,
-                urlSession: urlSession
-            )
-        )
+        _homeViewModel = StateObject(wrappedValue: viewModel)
     }
 
     public var body: some View {
@@ -132,73 +124,6 @@ public struct HomeRootView: View {
             }
         } message: {
             Text(authViewModel.errorMessage ?? "")
-        }
-    }
-}
-
-@MainActor
-public final class HomeViewModel: ObservableObject {
-    @Published public private(set) var isLoading = false
-    @Published public private(set) var currentDateText: String?
-    @Published public var errorMessage: String?
-
-    private let urlSession: URLSession
-    private let baseURL: URL
-
-    public init(
-        baseURL: URL = AuthEnvironment.productionBaseURL,
-        urlSession: URLSession = .shared
-    ) {
-        self.baseURL = baseURL
-        self.urlSession = urlSession
-    }
-
-    public func loadCurrentDate() async {
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            let endpoint = baseURL.appending(path: "home/current-date")
-            let (data, response) = try await urlSession.data(from: endpoint)
-
-            guard let httpResponse = response as? HTTPURLResponse else {
-                throw HomeScreenError.invalidResponse
-            }
-
-            guard 200 ..< 300 ~= httpResponse.statusCode else {
-                throw HomeScreenError.server(statusCode: httpResponse.statusCode)
-            }
-
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let payload = try decoder.decode(CurrentDateResponse.self, from: data)
-
-            let formatter = DateFormatter()
-            formatter.dateStyle = .full
-            formatter.timeStyle = .medium
-            currentDateText = formatter.string(from: payload.currentDate)
-        } catch {
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-        }
-
-        isLoading = false
-    }
-}
-
-private struct CurrentDateResponse: Decodable {
-    let currentDate: Date
-}
-
-private enum HomeScreenError: LocalizedError {
-    case invalidResponse
-    case server(statusCode: Int)
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidResponse:
-            return "Сервер вернул некорректный ответ."
-        case let .server(statusCode):
-            return "Не удалось загрузить дату. Код ответа: \(statusCode)."
         }
     }
 }

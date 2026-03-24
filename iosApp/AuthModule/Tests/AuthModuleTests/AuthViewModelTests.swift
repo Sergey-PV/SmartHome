@@ -9,6 +9,7 @@ struct AuthViewModelTests {
         repository.loadStateResult = .success(
             AuthStateSnapshot(
                 isAuthenticated: true,
+                accessToken: "access-token-1",
                 user: User(
                     id: "1",
                     email: "sergey@example.com",
@@ -29,6 +30,7 @@ struct AuthViewModelTests {
         await viewModel.load()
 
         #expect(viewModel.isAuthenticated)
+        #expect(viewModel.accessToken == "access-token-1")
         #expect(viewModel.currentUser?.email == "sergey@example.com")
         #expect(viewModel.biometricEnabled)
         #expect(viewModel.canLoginWithBiometrics)
@@ -53,6 +55,7 @@ struct AuthViewModelTests {
         repository.registerResult = .success(
             AuthStateSnapshot(
                 isAuthenticated: true,
+                accessToken: "access-token-2",
                 user: User(
                     id: "2",
                     email: "new@example.com",
@@ -79,6 +82,7 @@ struct AuthViewModelTests {
         await viewModel.register()
 
         #expect(viewModel.isAuthenticated)
+        #expect(viewModel.accessToken == "access-token-2")
         #expect(viewModel.currentUser?.email == "new@example.com")
         #expect(repository.registerCallCount == 1)
     }
@@ -98,6 +102,7 @@ struct AuthViewModelTests {
         await viewModel.logout()
 
         #expect(!viewModel.isAuthenticated)
+        #expect(viewModel.accessToken == nil)
         #expect(viewModel.currentUser == nil)
         #expect(repository.logoutCallCount == 1)
     }

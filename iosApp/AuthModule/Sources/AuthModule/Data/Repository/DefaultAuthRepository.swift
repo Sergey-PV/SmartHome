@@ -142,6 +142,7 @@ final class DefaultAuthRepository: AuthRepository, @unchecked Sendable {
 
             return AuthStateSnapshot(
                 isAuthenticated: true,
+                accessToken: response.accessToken,
                 user: mapUser(response.user),
                 biometricAvailability: availability,
                 biometricEnabled: response.biometricEnabled,
@@ -282,6 +283,7 @@ final class DefaultAuthRepository: AuthRepository, @unchecked Sendable {
 
             return AuthStateSnapshot(
                 isAuthenticated: session.authenticated,
+                accessToken: tokens.accessToken,
                 user: mapUser(userDTO),
                 biometricAvailability: availability,
                 biometricEnabled: overrideBiometricEnabled ?? session.biometricEnabled,
@@ -345,6 +347,7 @@ final class DefaultAuthRepository: AuthRepository, @unchecked Sendable {
 
         return AuthStateSnapshot(
             isAuthenticated: true,
+            accessToken: response.accessToken,
             user: mapUser(response.user),
             biometricAvailability: availability,
             biometricEnabled: response.biometricEnabled,

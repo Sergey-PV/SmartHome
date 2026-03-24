@@ -314,7 +314,6 @@ paths:
       tags: [Home]
       summary: Get current server date for the main screen
       operationId: getCurrentDate
-      security: []
       responses:
         '200':
           description: Current server date
@@ -322,6 +321,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CurrentDateResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
 components:
   securitySchemes:

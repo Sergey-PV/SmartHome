@@ -26,6 +26,7 @@ public final class AuthViewModel: ObservableObject {
     @Published public var lastName: String = ""
     @Published public private(set) var isLoading: Bool = false
     @Published public private(set) var isAuthenticated: Bool = false
+    @Published public private(set) var accessToken: String?
     @Published public private(set) var currentUser: User?
     @Published public private(set) var biometricAvailable: Bool = false
     @Published public private(set) var biometricEnabled: Bool = false
@@ -184,6 +185,7 @@ public final class AuthViewModel: ObservableObject {
 
     private func apply(_ snapshot: AuthStateSnapshot) {
         isAuthenticated = snapshot.isAuthenticated
+        accessToken = snapshot.accessToken
         currentUser = snapshot.user
         biometricAvailable = snapshot.biometricAvailability.isAvailable
         biometricEnabled = snapshot.biometricEnabled
@@ -193,6 +195,7 @@ public final class AuthViewModel: ObservableObject {
         sessionStartedAt = snapshot.sessionStartedAt
 
         if !snapshot.isAuthenticated {
+            accessToken = nil
             currentUser = nil
             biometricEnabled = false
         }

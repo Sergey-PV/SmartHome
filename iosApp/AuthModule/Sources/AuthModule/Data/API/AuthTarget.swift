@@ -99,20 +99,11 @@ enum AuthTarget: TargetType {
              let .currentUser(_, accessToken):
             return authorizedHeaders(accessToken)
         case .login, .register, .refresh, .loginWithBiometric:
-            return jsonHeaders
+            return [:]
         }
     }
 
-    private var jsonHeaders: [String: String] {
-        [
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        ]
-    }
-
     private func authorizedHeaders(_ accessToken: String) -> [String: String] {
-        var headers = jsonHeaders
-        headers["Authorization"] = "Bearer \(accessToken)"
-        return headers
+        ["Authorization": "Bearer \(accessToken)"]
     }
 }

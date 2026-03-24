@@ -38,6 +38,7 @@ public struct AuthSession: Equatable, Sendable {
 
 public struct AuthStateSnapshot: Equatable, Sendable {
     public let isAuthenticated: Bool
+    public let accessToken: String?
     public let user: User?
     public let biometricAvailability: BiometricAvailability
     public let biometricEnabled: Bool
@@ -47,6 +48,7 @@ public struct AuthStateSnapshot: Equatable, Sendable {
 
     public init(
         isAuthenticated: Bool,
+        accessToken: String?,
         user: User?,
         biometricAvailability: BiometricAvailability,
         biometricEnabled: Bool,
@@ -55,6 +57,7 @@ public struct AuthStateSnapshot: Equatable, Sendable {
         sessionStartedAt: Date?
     ) {
         self.isAuthenticated = isAuthenticated
+        self.accessToken = accessToken
         self.user = user
         self.biometricAvailability = biometricAvailability
         self.biometricEnabled = biometricEnabled
@@ -70,6 +73,7 @@ public struct AuthStateSnapshot: Equatable, Sendable {
     ) -> AuthStateSnapshot {
         AuthStateSnapshot(
             isAuthenticated: false,
+            accessToken: nil,
             user: nil,
             biometricAvailability: availability,
             biometricEnabled: false,

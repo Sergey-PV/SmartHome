@@ -183,5 +183,7 @@ async def metrics(request: Request):
 
 
 @router.get("/home/current-date", response_model=CurrentDateResponse)
-async def current_date() -> CurrentDateResponse:
+async def current_date(
+    _: Annotated[AuthSession, Depends(get_current_session)],
+) -> CurrentDateResponse:
     return CurrentDateResponse(currentDate=utc_now())

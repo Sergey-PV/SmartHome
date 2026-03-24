@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8080
     log_level: str = "INFO"
+    log_http_headers: bool = True
+    log_http_bodies: bool = True
+    log_http_body_max_length: int = 32768
 
     database_url: str = "postgresql+asyncpg://smarthome_auth:smarthome_auth@127.0.0.1:5432/smarthome_auth"
     token_hash_secret: str = Field(default="change-me", min_length=8)

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import logging
+import time
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
@@ -8,6 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.concurrency import iterate_in_threadpool
 
 from app.config import get_settings
 from app.db import ping_database, seed_user_if_configured
@@ -19,6 +22,18 @@ from app.schemas import ErrorResponse
 from app.service import AuthServiceError
 
 logger = logging.getLogger(__name__)
+
+
+def _truncate_text(value: str, max_length: int) -> str:
+    if len(value) <= max_length:
+        return value
+    return value[:max_length] + "...<truncated>"
+
+
+def _decode_body(body: bytes, max_length: int) -> str:
+    if not body:
+        return ""
+    return _truncate_text(body.decode("utf-8", errors="replace"), max_length)
 
 
 @asynccontextmanager
@@ -76,16 +91,39 @@ def create_app() -> FastAPI:
 
     @app.middleware("http")
     async def logging_middleware(request: Request, call_next):
+        request_body = await request.body()
+
+        async def receive():
+            return {"type": "http.request", "body": request_body, "more_body": False}
+
+        request._receive = receive  # type: ignore[attr-defined]
+        started_at = time.perf_counter()
         response = await call_next(request)
-        logger.info(
-            "http_request",
-            extra={
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code,
-                "request_id": getattr(request.state, "request_id", None),
-            },
-        )
+
+        response_body = b""
+        if settings.log_http_bodies:
+            chunks = [chunk async for chunk in response.body_iterator]
+            response_body = b"".join(chunks)
+            response.body_iterator = iterate_in_threadpool(iter([response_body]))
+
+        payload = {
+            "request_id": getattr(request.state, "request_id", None),
+            "method": request.method,
+            "path": request.url.path,
+            "query": request.url.query,
+            "status_code": response.status_code,
+            "duration_ms": round((time.perf_counter() - started_at) * 1000, 2),
+        }
+
+        if settings.log_http_headers:
+            payload["request_headers"] = dict(request.headers)
+            payload["response_headers"] = dict(response.headers)
+
+        if settings.log_http_bodies:
+            payload["request_body"] = _decode_body(request_body, settings.log_http_body_max_length)
+            payload["response_body"] = _decode_body(response_body, settings.log_http_body_max_length)
+
+        logger.info("http_exchange %s", json.dumps(payload, ensure_ascii=False, default=str))
         return response
 
     app.include_router(router)

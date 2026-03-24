@@ -2,11 +2,11 @@ import Foundation
 import Network
 
 enum HomeTarget: TargetType {
-    case currentDate(baseURL: URL, accessToken: String)
+    case currentDate(baseURL: URL)
 
     var baseURL: URL {
         switch self {
-        case let .currentDate(baseURL, _):
+        case let .currentDate(baseURL):
             return baseURL
         }
     }
@@ -22,12 +22,5 @@ enum HomeTarget: TargetType {
 
     var task: RequestTask { .requestPlain }
 
-    var headers: [String : String] {
-        switch self {
-        case let .currentDate(_, accessToken):
-            return [
-                "Authorization": "Bearer \(accessToken)",
-            ]
-        }
-    }
+    var requiresAuthorization: Bool { true }
 }

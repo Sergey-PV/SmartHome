@@ -3,23 +3,14 @@ import Network
 
 final class DefaultHomeRepository: HomeRepository, @unchecked Sendable {
     private let apiClient: HomeAPIClient
-    private let accessTokenProvider: () -> String?
 
-    init(
-        apiClient: HomeAPIClient,
-        accessTokenProvider: @escaping () -> String?
-    ) {
+    init(apiClient: HomeAPIClient) {
         self.apiClient = apiClient
-        self.accessTokenProvider = accessTokenProvider
     }
 
     func loadCurrentDate() async throws -> Date {
-        guard let accessToken = accessTokenProvider(), !accessToken.isEmpty else {
-            throw HomeError.missingAccessToken
-        }
-
         do {
-            let response = try await apiClient.getCurrentDate(accessToken: accessToken)
+            let response = try await apiClient.getCurrentDate()
             return response.currentDate
         } catch {
             throw map(error)
@@ -33,6 +24,8 @@ final class DefaultHomeRepository: HomeRepository, @unchecked Sendable {
 
         if let networkError = error as? NetworkError {
             switch networkError {
+            case .unauthorized:
+                return .unauthorized
             case .invalidResponse:
                 return .invalidResponse
             case let .statusCode(response):

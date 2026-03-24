@@ -28,6 +28,7 @@ public enum AuthModuleAssembly {
             loginWithEmailUseCase: LoginWithEmailUseCase(repository: repository),
             registerWithEmailUseCase: RegisterWithEmailUseCase(repository: repository),
             refreshSessionUseCase: RefreshSessionUseCase(repository: repository),
+            refreshAccessTokenUseCase: RefreshAccessTokenUseCase(repository: repository),
             loginWithBiometricsUseCase: LoginWithBiometricsUseCase(repository: repository),
             enableBiometricsUseCase: EnableBiometricsUseCase(repository: repository),
             disableBiometricsUseCase: DisableBiometricsUseCase(repository: repository),

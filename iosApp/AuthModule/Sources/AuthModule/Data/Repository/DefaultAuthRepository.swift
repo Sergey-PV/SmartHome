@@ -118,6 +118,10 @@ final class DefaultAuthRepository: AuthRepository, @unchecked Sendable {
         try await refreshAndFetchState(availability: biometricAuthenticator.availability())
     }
 
+    func refreshAccessToken() async throws -> AuthTokens {
+        try await refreshTokens()
+    }
+
     func loginWithBiometrics() async throws -> AuthStateSnapshot {
         let availability = biometricAuthenticator.availability()
         guard availability.isAvailable else {
@@ -252,6 +256,19 @@ final class DefaultAuthRepository: AuthRepository, @unchecked Sendable {
     }
 
     private func refreshAndFetchState(availability: BiometricAvailability) async throws -> AuthStateSnapshot {
+        let refreshedTokens = try await refreshTokens()
+
+        do {
+            return try await fetchAuthorizedState(tokens: refreshedTokens, availability: availability)
+        } catch let error as AuthError {
+            if case .unauthorized = error {
+                try? credentialStore.removeTokens()
+            }
+            throw error
+        }
+    }
+
+    private func refreshTokens() async throws -> AuthTokens {
         let device = deviceContextProvider.currentDeviceContext()
         let tokens = try storedTokens()
 
@@ -263,11 +280,20 @@ final class DefaultAuthRepository: AuthRepository, @unchecked Sendable {
                 )
             )
 
-            try credentialStore.saveTokens(mapTokens(from: response))
-            return try await fetchAuthorizedState(tokens: try storedTokens(), availability: availability)
+            let refreshedTokens = mapTokens(from: response)
+            try credentialStore.saveTokens(refreshedTokens)
+            return refreshedTokens
+        } catch let error as AuthError {
+            if case .unauthorized = error {
+                try? credentialStore.removeTokens()
+            }
+            throw error
         } catch {
-            try? credentialStore.removeTokens()
-            throw map(error)
+            let mappedError = map(error)
+            if case .unauthorized = mappedError {
+                try? credentialStore.removeTokens()
+            }
+            throw mappedError
         }
     }
 
@@ -375,6 +401,8 @@ final class DefaultAuthRepository: AuthRepository, @unchecked Sendable {
 
         if let networkError = error as? NetworkError {
             switch networkError {
+            case .unauthorized:
+                return .unauthorized("Сессия истекла. Выполните вход ещё раз.")
             case let .statusCode(response):
                 let payload = try? makeErrorDecoder().decode(ErrorResponseDTO.self, from: response.data)
                 let message = payload?.message ?? "Ошибка сервера. Попробуйте ещё раз."

@@ -59,10 +59,12 @@ class AuthService:
         if session is None:
             raise self.unauthorized_error()
 
-        if session.revoked_at is not None or session.access_expires_at <= now:
-            if session.revoked_at is None:
-                session.revoked_at = now
-                await self.db_session.commit()
+        if session.revoked_at is not None:
+            raise self.unauthorized_error()
+
+        # An expired access token should not revoke the whole session, otherwise
+        # the refresh token becomes unusable before its own TTL ends.
+        if session.access_expires_at <= now:
             raise self.unauthorized_error()
 
         return session

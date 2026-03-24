@@ -14,7 +14,9 @@ public struct AuthRootView: View {
                     header
                     statusBanner
 
-                    if viewModel.isAuthenticated {
+                    if !viewModel.hasResolvedInitialSession {
+                        bootstrapContent
+                    } else if viewModel.isAuthenticated {
                         authenticatedContent
                     } else {
                         loginContent
@@ -29,7 +31,7 @@ public struct AuthRootView: View {
             }
         }
         .task {
-            await viewModel.load()
+            await viewModel.bootstrap()
         }
         .alert(
             "Ошибка авторизации",
@@ -48,6 +50,19 @@ public struct AuthRootView: View {
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
+    }
+
+    private var bootstrapContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionTitle("Проверяем сессию")
+
+            HStack(spacing: 12) {
+                ProgressView()
+                Text("Восстанавливаем авторизацию и загружаем актуальное состояние аккаунта.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .cardStyle()
     }
 
     private var header: some View {

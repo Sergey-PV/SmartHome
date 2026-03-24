@@ -25,11 +25,68 @@ struct NetworkProviderTests {
             _ = try await provider.request(TestTarget.profile)
         }
     }
+
+    @Test
+    func authenticatedProviderRefreshesAndRetriesAfterUnauthorized() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        let session = URLSession(configuration: configuration)
+        let baseProvider = NetworkProvider(session: session)
+        let provider = AuthenticatedNetworkProvider(
+            baseProvider: baseProvider,
+            accessTokenProvider: { URLProtocolStub.currentAccessToken },
+            refreshAction: {
+                URLProtocolStub.currentAccessToken = "new-token"
+                return "new-token"
+            },
+            logoutAction: {}
+        )
+
+        URLProtocolStub.reset()
+
+        let response = try await provider.request(
+            TestTarget.secureProfile,
+            as: LoginResponse.self,
+            decoder: JSONDecoder()
+        )
+
+        #expect(response.accessToken == "secure")
+        #expect(URLProtocolStub.secureProfileRequestCount >= 2)
+    }
+
+    @Test
+    func authenticatedProviderLogsOutWhenRefreshFails() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        let session = URLSession(configuration: configuration)
+        let baseProvider = NetworkProvider(session: session)
+        let logoutFlag = LogoutFlag()
+        let provider = AuthenticatedNetworkProvider(
+            baseProvider: baseProvider,
+            accessTokenProvider: { URLProtocolStub.currentAccessToken },
+            refreshAction: {
+                throw NetworkError.unauthorized
+            },
+            logoutAction: {
+                await logoutFlag.markLoggedOut()
+            }
+        )
+
+        URLProtocolStub.reset()
+
+        await #expect(throws: NetworkError.self) {
+            _ = try await provider.request(TestTarget.secureProfile)
+        }
+
+        let didLogout = await logoutFlag.didLogout
+        #expect(didLogout)
+    }
 }
 
 private enum TestTarget: TargetType {
     case login
     case profile
+    case secureProfile
 
     var baseURL: URL { URL(string: "https://api.example.com/v1")! }
 
@@ -39,6 +96,8 @@ private enum TestTarget: TargetType {
             return "/login"
         case .profile:
             return "/profile"
+        case .secureProfile:
+            return "/secure-profile"
         }
     }
 
@@ -46,7 +105,7 @@ private enum TestTarget: TargetType {
         switch self {
         case .login:
             return .post
-        case .profile:
+        case .profile, .secureProfile:
             return .get
         }
     }
@@ -55,7 +114,7 @@ private enum TestTarget: TargetType {
         switch self {
         case .login:
             return .requestJSONEncodable(AnyEncodable(LoginPayload(email: "sergey@example.com")))
-        case .profile:
+        case .profile, .secureProfile:
             return .requestPlain
         }
     }
@@ -64,8 +123,17 @@ private enum TestTarget: TargetType {
         switch self {
         case .login:
             return ["Authorization": "Bearer token"]
-        case .profile:
+        case .profile, .secureProfile:
             return [:]
+        }
+    }
+
+    var requiresAuthorization: Bool {
+        switch self {
+        case .secureProfile:
+            return true
+        case .login, .profile:
+            return false
         }
     }
 }
@@ -79,6 +147,14 @@ private struct LoginResponse: Codable, Sendable {
 }
 
 private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var currentAccessToken = "expired-token"
+    nonisolated(unsafe) static var secureProfileRequestCount = 0
+
+    static func reset() {
+        currentAccessToken = "expired-token"
+        secureProfileRequestCount = 0
+    }
+
     override class func canInit(with request: URLRequest) -> Bool {
         true
     }
@@ -125,6 +201,22 @@ private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
                 HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)!,
                 Data("{\"message\":\"Unauthorized\"}".utf8)
             )
+        case "/v1/secure-profile":
+            secureProfileRequestCount += 1
+
+            if request.value(forHTTPHeaderField: "Authorization") == "Bearer expired-token" {
+                return (
+                    HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)!,
+                    Data("{\"message\":\"Unauthorized\"}".utf8)
+                )
+            }
+
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer new-token")
+            #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
+            return (
+                HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                try JSONEncoder().encode(LoginResponse(accessToken: "secure"))
+            )
         default:
             throw URLError(.badURL)
         }
@@ -154,5 +246,13 @@ private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         }
 
         return data.isEmpty ? nil : data
+    }
+}
+
+private actor LogoutFlag {
+    private(set) var didLogout = false
+
+    func markLoggedOut() {
+        didLogout = true
     }
 }

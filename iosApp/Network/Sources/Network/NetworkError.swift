@@ -1,6 +1,7 @@
 import Foundation
 
 public enum NetworkError: LocalizedError, Sendable {
+    case unauthorized
     case invalidResponse
     case emptyResponse
     case requestEncoding(String)
@@ -9,6 +10,8 @@ public enum NetworkError: LocalizedError, Sendable {
 
     public var errorDescription: String? {
         switch self {
+        case .unauthorized:
+            return "Сессия истекла. Выполните вход заново."
         case .invalidResponse:
             return "Сервер вернул некорректный ответ."
         case .emptyResponse:

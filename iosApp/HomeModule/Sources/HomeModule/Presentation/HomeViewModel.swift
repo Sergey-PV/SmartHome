@@ -21,7 +21,12 @@ public final class HomeViewModel: ObservableObject {
             let currentDate = try await loadCurrentDateUseCase.execute()
             currentDateText = Self.makeFormatter().string(from: currentDate)
         } catch let homeError as HomeError {
-            errorMessage = homeError.localizedDescription
+            switch homeError {
+            case .missingAccessToken, .unauthorized:
+                errorMessage = nil
+            case .invalidResponse, .server, .transport:
+                errorMessage = homeError.localizedDescription
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -6,15 +6,10 @@ public enum HomeModuleAssembly {
     @MainActor
     public static func makeViewModel(
         baseURL: URL = AuthEnvironment.productionBaseURL,
-        session: URLSession = .shared,
-        accessTokenProvider: @escaping () -> String?
+        provider: any NetworkProviding
     ) -> HomeViewModel {
-        let provider = NetworkProvider(session: session)
         let apiClient = DefaultHomeAPIClient(baseURL: baseURL, provider: provider)
-        let repository = DefaultHomeRepository(
-            apiClient: apiClient,
-            accessTokenProvider: accessTokenProvider
-        )
+        let repository = DefaultHomeRepository(apiClient: apiClient)
 
         return HomeViewModel(
             loadCurrentDateUseCase: LoadCurrentDateUseCase(repository: repository)
@@ -25,14 +20,13 @@ public enum HomeModuleAssembly {
     public static func makeRootView(
         authViewModel: AuthViewModel,
         baseURL: URL = AuthEnvironment.productionBaseURL,
-        session: URLSession = .shared
+        provider: any NetworkProviding
     ) -> HomeRootView {
         HomeRootView(
             authViewModel: authViewModel,
             viewModel: makeViewModel(
                 baseURL: baseURL,
-                session: session,
-                accessTokenProvider: { authViewModel.accessToken }
+                provider: provider
             )
         )
     }

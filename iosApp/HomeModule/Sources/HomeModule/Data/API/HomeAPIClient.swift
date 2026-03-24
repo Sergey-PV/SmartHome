@@ -2,7 +2,7 @@ import Foundation
 import Network
 
 protocol HomeAPIClient: Sendable {
-    func getCurrentDate(accessToken: String) async throws -> CurrentDateResponseDTO
+    func getCurrentDate() async throws -> CurrentDateResponseDTO
 }
 
 final class DefaultHomeAPIClient: HomeAPIClient, @unchecked Sendable {
@@ -14,9 +14,9 @@ final class DefaultHomeAPIClient: HomeAPIClient, @unchecked Sendable {
         self.provider = provider
     }
 
-    func getCurrentDate(accessToken: String) async throws -> CurrentDateResponseDTO {
+    func getCurrentDate() async throws -> CurrentDateResponseDTO {
         try await provider.request(
-            HomeTarget.currentDate(baseURL: baseURL, accessToken: accessToken),
+            HomeTarget.currentDate(baseURL: baseURL),
             as: CurrentDateResponseDTO.self,
             decoder: makeDecoder()
         )

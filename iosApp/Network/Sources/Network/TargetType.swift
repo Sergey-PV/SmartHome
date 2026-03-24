@@ -6,11 +6,13 @@ public protocol TargetType: Sendable {
     var method: HTTPMethod { get }
     var task: RequestTask { get }
     var headers: [String: String] { get }
+    var requiresAuthorization: Bool { get }
     var sampleData: Data { get }
 }
 
 public extension TargetType {
     var task: RequestTask { .requestPlain }
     var headers: [String: String] { [:] }
+    var requiresAuthorization: Bool { false }
     var sampleData: Data { Data() }
 }

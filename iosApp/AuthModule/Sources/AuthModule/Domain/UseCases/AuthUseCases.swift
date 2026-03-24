@@ -48,6 +48,18 @@ public struct RefreshSessionUseCase: Sendable {
     }
 }
 
+public struct RefreshAccessTokenUseCase: Sendable {
+    private let repository: any AuthRepository
+
+    public init(repository: any AuthRepository) {
+        self.repository = repository
+    }
+
+    public func execute() async throws -> AuthTokens {
+        try await repository.refreshAccessToken()
+    }
+}
+
 public struct LoginWithBiometricsUseCase: Sendable {
     private let repository: any AuthRepository
 

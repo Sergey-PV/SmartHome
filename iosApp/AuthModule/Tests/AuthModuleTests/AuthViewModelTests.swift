@@ -30,10 +30,26 @@ struct AuthViewModelTests {
         await viewModel.load()
 
         #expect(viewModel.isAuthenticated)
+        #expect(viewModel.hasResolvedInitialSession)
+        #expect(!viewModel.isRestoringSession)
         #expect(viewModel.accessToken == "access-token-1")
         #expect(viewModel.currentUser?.email == "sergey@example.com")
         #expect(viewModel.biometricEnabled)
         #expect(viewModel.canLoginWithBiometrics)
+    }
+
+    @Test
+    func bootstrapResolvesInitialStateWithoutShowingError() async throws {
+        let repository = AuthRepositorySpy()
+        repository.loadStateResult = .failure(AuthError.unauthorized("Сессия истекла."))
+
+        let viewModel = makeViewModel(repository: repository)
+        await viewModel.bootstrap()
+
+        #expect(viewModel.hasResolvedInitialSession)
+        #expect(!viewModel.isRestoringSession)
+        #expect(!viewModel.isAuthenticated)
+        #expect(viewModel.errorMessage == nil)
     }
 
     @Test
@@ -113,6 +129,7 @@ struct AuthViewModelTests {
             loginWithEmailUseCase: LoginWithEmailUseCase(repository: repository),
             registerWithEmailUseCase: RegisterWithEmailUseCase(repository: repository),
             refreshSessionUseCase: RefreshSessionUseCase(repository: repository),
+            refreshAccessTokenUseCase: RefreshAccessTokenUseCase(repository: repository),
             loginWithBiometricsUseCase: LoginWithBiometricsUseCase(repository: repository),
             enableBiometricsUseCase: EnableBiometricsUseCase(repository: repository),
             disableBiometricsUseCase: DisableBiometricsUseCase(repository: repository),
@@ -187,6 +204,17 @@ private final class AuthRepositorySpy: AuthRepository, @unchecked Sendable {
 
     func refreshSession() async throws -> AuthStateSnapshot {
         try refreshResult.get()
+    }
+
+    func refreshAccessToken() async throws -> AuthTokens {
+        let snapshot = try refreshResult.get()
+        return AuthTokens(
+            accessToken: snapshot.accessToken ?? "",
+            refreshToken: "refresh-token",
+            tokenType: "Bearer",
+            expiresIn: 900,
+            refreshExpiresIn: 2_592_000
+        )
     }
 
     func loginWithBiometrics() async throws -> AuthStateSnapshot {

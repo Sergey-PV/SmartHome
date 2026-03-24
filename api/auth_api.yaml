@@ -1,0 +1,652 @@
+openapi: 3.1.0
+info:
+  title: Auth API
+  version: 1.0.0
+  summary: Authentication module for iOS app with email/password, biometric session restore, access token and refresh token
+  description: |
+    API for authentication in iOS application.
+
+    Features:
+    - Email/password login
+    - Access token / refresh token pair
+    - Session restore with Face ID / Touch ID
+    - Biometric device registration
+    - Logout and token revocation
+
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+  - url: https://staging-api.example.com/v1
+    description: Staging server
+
+tags:
+  - name: Auth
+    description: Authentication endpoints
+  - name: User
+    description: Current user endpoints
+  - name: Home
+    description: Main screen endpoints
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      operationId: loginWithEmail
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              default:
+                value:
+                  email: user@example.com
+                  password: StrongPassword123!
+                  device:
+                    deviceId: 2f1d3d6a-31b7-4c2c-a7f7-204f6f735111
+                    platform: iOS
+                    appVersion: 1.0.0
+                    osVersion: 17.4
+                    deviceModel: iPhone15,3
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCredentials:
+                  value:
+                    code: INVALID_CREDENTIALS
+                    message: Email or password is incorrect
+        '423':
+          description: Account temporarily locked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user account
+      operationId: registerWithEmail
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              default:
+                value:
+                  email: new-user@example.com
+                  password: StrongPassword123!
+                  firstName: Sergey
+                  lastName: Ivanov
+                  device:
+                    deviceId: 2f1d3d6a-31b7-4c2c-a7f7-204f6f735111
+                    platform: iOS
+                    appVersion: 1.0.0
+                    osVersion: 17.4
+                    deviceModel: iPhone15,3
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email is already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                duplicateEmail:
+                  value:
+                    code: EMAIL_ALREADY_REGISTERED
+                    message: User with this email already exists
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token using refresh token
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            examples:
+              default:
+                value:
+                  refreshToken: rft_eyJhbGciOi...
+                  deviceId: 2f1d3d6a-31b7-4c2c-a7f7-204f6f735111
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current session
+      operationId: logout
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '204':
+          description: Logout successful
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout-all:
+    post:
+      tags: [Auth]
+      summary: Logout from all devices
+      operationId: logoutAll
+      responses:
+        '204':
+          description: All sessions revoked
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/biometric/enable:
+    post:
+      tags: [Auth]
+      summary: Enable biometric session restore for current device
+      operationId: enableBiometric
+      description: |
+        Registers current device for biometric-based session restore.
+        Client should call this endpoint only after local Face ID / Touch ID verification succeeds.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnableBiometricRequest'
+            examples:
+              default:
+                value:
+                  deviceId: 2f1d3d6a-31b7-4c2c-a7f7-204f6f735111
+                  biometricType: faceId
+                  deviceName: Sergey iPhone
+      responses:
+        '200':
+          description: Biometric auth enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnableBiometricResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Biometric auth already enabled for this device
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/biometric/login:
+    post:
+      tags: [Auth]
+      summary: Restore session using biometric token
+      operationId: loginWithBiometric
+      description: |
+        Restores server session after successful local biometric verification on device.
+        Client sends biometric token associated with device registration.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BiometricLoginRequest'
+            examples:
+              default:
+                value:
+                  biometricToken: bmt_eyJhbGciOi...
+                  deviceId: 2f1d3d6a-31b7-4c2c-a7f7-204f6f735111
+      responses:
+        '200':
+          description: Session restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSessionResponse'
+        '401':
+          description: Invalid or expired biometric token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Device is not trusted or biometric access revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/biometric/disable:
+    post:
+      tags: [Auth]
+      summary: Disable biometric session restore for current device
+      operationId: disableBiometric
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisableBiometricRequest'
+      responses:
+        '204':
+          description: Biometric auth disabled
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/session:
+    get:
+      tags: [Auth]
+      summary: Get current session state
+      operationId: getSession
+      responses:
+        '200':
+          description: Current session info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionInfoResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me:
+    get:
+      tags: [User]
+      summary: Get current user profile
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /home/current-date:
+    get:
+      tags: [Home]
+      summary: Get current server date for the main screen
+      operationId: getCurrentDate
+      security: []
+      responses:
+        '200':
+          description: Current server date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentDateResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unauthorized:
+              value:
+                code: UNAUTHORIZED
+                message: Access token is missing or invalid
+
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+        - device
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: StrongPassword123!
+        device:
+          $ref: '#/components/schemas/DeviceInfo'
+
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - device
+      properties:
+        email:
+          type: string
+          format: email
+          example: new-user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: StrongPassword123!
+        firstName:
+          type: string
+          maxLength: 120
+          nullable: true
+          example: Sergey
+        lastName:
+          type: string
+          maxLength: 120
+          nullable: true
+          example: Ivanov
+        device:
+          $ref: '#/components/schemas/DeviceInfo'
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+        - deviceId
+      properties:
+        refreshToken:
+          type: string
+          example: rft_eyJhbGciOi...
+        deviceId:
+          type: string
+          format: uuid
+          example: 2f1d3d6a-31b7-4c2c-a7f7-204f6f735111
+
+    LogoutRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: Optional refresh token to revoke explicitly
+          example: rft_eyJhbGciOi...
+        deviceId:
+          type: string
+          format: uuid
+          example: 2f1d3d6a-31b7-4c2c-a7f7-204f6f735111
+
+    EnableBiometricRequest:
+      type: object
+      required:
+        - deviceId
+        - biometricType
+      properties:
+        deviceId:
+          type: string
+          format: uuid
+        biometricType:
+          type: string
+          enum: [faceId, touchId]
+        deviceName:
+          type: string
+          maxLength: 100
+          example: Sergey iPhone
+
+    EnableBiometricResponse:
+      type: object
+      required:
+        - biometricEnabled
+        - biometricToken
+      properties:
+        biometricEnabled:
+          type: boolean
+          example: true
+        biometricToken:
+          type: string
+          description: |
+            Long-lived token stored securely on device and used only after local biometric verification.
+          example: bmt_eyJhbGciOi...
+        issuedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    BiometricLoginRequest:
+      type: object
+      required:
+        - biometricToken
+        - deviceId
+      properties:
+        biometricToken:
+          type: string
+          example: bmt_eyJhbGciOi...
+        deviceId:
+          type: string
+          format: uuid
+
+    DisableBiometricRequest:
+      type: object
+      required:
+        - deviceId
+      properties:
+        deviceId:
+          type: string
+          format: uuid
+
+    AuthSessionResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - tokenType
+        - expiresIn
+        - user
+        - biometricAvailable
+        - biometricEnabled
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refreshToken:
+          type: string
+          example: rft_eyJhbGciOi...
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          description: Access token lifetime in seconds
+          example: 900
+        refreshExpiresIn:
+          type: integer
+          description: Refresh token lifetime in seconds
+          example: 2592000
+        user:
+          $ref: '#/components/schemas/User'
+        biometricAvailable:
+          type: boolean
+          example: true
+        biometricEnabled:
+          type: boolean
+          example: false
+
+    RefreshTokenResponse:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+        - tokenType
+        - expiresIn
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refreshToken:
+          type: string
+          example: rft_eyJhbGciOi...
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          example: 900
+        refreshExpiresIn:
+          type: integer
+          example: 2592000
+
+    SessionInfoResponse:
+      type: object
+      required:
+        - authenticated
+        - user
+        - biometricEnabled
+      properties:
+        authenticated:
+          type: boolean
+          example: true
+        user:
+          $ref: '#/components/schemas/User'
+        biometricEnabled:
+          type: boolean
+          example: true
+        currentDeviceId:
+          type: string
+          format: uuid
+        sessionStartedAt:
+          type: string
+          format: date-time
+
+    CurrentDateResponse:
+      type: object
+      required:
+        - currentDate
+      properties:
+        currentDate:
+          type: string
+          format: date-time
+          example: 2026-03-24T10:00:00Z
+
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - emailVerified
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: e1a4f9ac-4ad2-4b8f-8e0a-1f4a8712ddf1
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        firstName:
+          type: string
+          example: Sergey
+          nullable: true
+        lastName:
+          type: string
+          example: Ivanov
+          nullable: true
+        emailVerified:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    DeviceInfo:
+      type: object
+      required:
+        - deviceId
+        - platform
+      properties:
+        deviceId:
+          type: string
+          format: uuid
+          example: 2f1d3d6a-31b7-4c2c-a7f7-204f6f735111
+        platform:
+          type: string
+          enum: [iOS]
+          example: iOS
+        appVersion:
+          type: string
+          example: 1.0.0
+        osVersion:
+          type: string
+          example: 17.4
+        deviceModel:
+          type: string
+          example: iPhone15,3
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: INVALID_CREDENTIALS
+        message:
+          type: string
+          example: Email or password is incorrect
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true

@@ -1,0 +1,2 @@
+"""SmartHome auth middleware package."""
+
